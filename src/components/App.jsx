@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Notify } from 'notiflix/build/notiflix-notify-aio';
 import fetchImages from 'js/pixabay-api';
 import ImageGallery from './ImageGallery/ImageGallery';
@@ -7,14 +7,15 @@ import Button from './Button/Button';
 import Loader from './Loader/Loader';
 import Modal from './Modal/Modal';
 
-const successMessage = totalHits => `Hooray! We found ${totalHits} images.`;
-const errorMessage = 'Oops! Something went wrong! Try reloading the page!';
-const noImagesMessage =
-  'Sorry, there are no images matching your search query. Please try again.';
-const endOfResultsMessage =
-  "We're sorry, but you've reached the end of search results.";
+const MESSAGES = {
+  success: totalHits => `Hooray! We found ${totalHits} images.`,
+  error: 'Oops! Something went wrong! Try reloading the page!',
+  noImages:
+    'Sorry, there are no images matching your search query. Please try again.',
+  endOfResults: "We're sorry, but you've reached the end of search results.",
+};
 
-const perPage = 12;
+const PER_PAGE = 12;
 
 const App = () => {
   const [images, setImages] = useState([]);
@@ -27,83 +28,51 @@ const App = () => {
 
   useEffect(() => {
     if (!searchQuery) return;
-
-    setIsLoading(true);
-
-    fetchImages(searchQuery, currentPage, perPage)
-      .then(searchResults => {
-        if (searchResults.total === 0) {
-          Notify.failure(noImagesMessage);
-        } else {
-          if (currentPage === 1) {
-            Notify.success(successMessage(searchResults.totalHits));
-          }
-
-          const canLoadMore =
-            currentPage < Math.ceil(searchResults.totalHits / perPage);
-
-          if (!canLoadMore) {
-            Notify.info(endOfResultsMessage);
-          }
-
-          setImages(prevImages => [...prevImages, ...searchResults.hits]);
-
-          setLoadMore(canLoadMore);
-        }
-      })
-      .catch(error => {
-        Notify.failure(errorMessage);
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
+    fetchImageData(searchQuery, currentPage);
   }, [searchQuery, currentPage]);
 
-  // componentDidUpdate(prevProps, prevState) {
-  //   const { searchQuery, currentPage, images } = this.state;
-  //   const searchQueryChanged = prevState.searchQuery !== searchQuery;
-  //   const currentPageChanged = prevState.currentPage !== currentPage;
-  //   // Checking if it is a new search with the same searchQuery
-  //   const imagesClearedAndNewSearch =
-  //     prevState.images !== images && images.length === 0;
+  const fetchImageData = async (query, page) => {
+    setIsLoading(true);
+    try {
+      const searchResults = await fetchImages(query, page, PER_PAGE);
 
-  //   if (searchQueryChanged || currentPageChanged || imagesClearedAndNewSearch) {
-  //     this.setState({ isLoading: true });
-  //     fetchImages(searchQuery, currentPage, perPage)
-  //       .then(searchResults => {
-  //         if (searchResults.total === 0) {
-  //           Notify.failure(noImagesMessage);
-  //         } else {
-  //           if (currentPage === 1) {
-  //             Notify.success(successMessage(searchResults.totalHits));
-  //           }
+      if (searchResults.total === 0) {
+        Notify.failure(MESSAGES.noImages);
+      } else {
+        if (page === 1) {
+          Notify.success(MESSAGES.success(searchResults.totalHits));
+        }
 
-  //           const loadMore =
-  //             currentPage < Math.ceil(searchResults.totalHits / perPage);
+        const canLoadMorePages =
+          page < Math.ceil(searchResults.totalHits / PER_PAGE);
 
-  //           if (!loadMore) {
-  //             Notify.info(endOfResultsMessage);
-  //           }
+        if (!canLoadMorePages) {
+          Notify.info(MESSAGES.endOfResults);
+        }
 
-  //           this.setState(prevState => ({
-  //             images: [...prevState.images, ...searchResults.hits],
-  //             loadMore,
-  //           }));
-  //         }
-  //       })
-  //       .catch(error => {
-  //         Notify.failure(errorMessage);
-  //       })
-  //       .finally(() => {
-  //         this.setState({ isLoading: false });
-  //       });
-  //   }
-  // }
+        setImages(prevImages => [...prevImages, ...searchResults.hits]);
+        setLoadMore(canLoadMorePages);
+      }
+    } catch (error) {
+      Notify.failure(MESSAGES.error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const onSearchHandler = newSearchQuery => {
-    setSearchQuery(newSearchQuery);
-    setImages([]);
-    setCurrentPage(1);
+    if (
+      newSearchQuery === searchQuery &&
+      images.length !== 0 &&
+      currentPage === 1
+    ) {
+      setImages([]);
+      fetchImageData(searchQuery, 1);
+    } else {
+      setSearchQuery(newSearchQuery);
+      setImages([]);
+      setCurrentPage(1);
+    }
   };
 
   const loadMoreHandler = () => {
