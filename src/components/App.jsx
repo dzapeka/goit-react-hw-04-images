@@ -13,6 +13,7 @@ const MESSAGES = {
   noImages:
     'Sorry, there are no images matching your search query. Please try again.',
   endOfResults: "We're sorry, but you've reached the end of search results.",
+  sameQuery: "You're already viewing the first page for this search query.",
 };
 
 const PER_PAGE = 12;
@@ -28,10 +29,10 @@ const App = () => {
 
   useEffect(() => {
     if (!searchQuery) return;
-    fetchImageData(searchQuery, currentPage);
+    loadImagesData(searchQuery, currentPage);
   }, [searchQuery, currentPage]);
 
-  const fetchImageData = async (query, page) => {
+  const loadImagesData = async (query, page) => {
     setIsLoading(true);
     try {
       const searchResults = await fetchImages(query, page, PER_PAGE);
@@ -61,18 +62,14 @@ const App = () => {
   };
 
   const onSearchHandler = newSearchQuery => {
-    if (
-      newSearchQuery === searchQuery &&
-      images.length !== 0 &&
-      currentPage === 1
-    ) {
-      setImages([]);
-      fetchImageData(searchQuery, 1);
-    } else {
-      setSearchQuery(newSearchQuery);
-      setImages([]);
-      setCurrentPage(1);
+    if (newSearchQuery === searchQuery && currentPage === 1) {
+      Notify.info(MESSAGES.sameQuery);
+      return;
     }
+
+    setSearchQuery(newSearchQuery);
+    setImages([]);
+    setCurrentPage(1);
   };
 
   const loadMoreHandler = () => {
