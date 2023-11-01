@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Notify } from 'notiflix/build/notiflix-notify-aio';
 import fetchImages from 'js/pixabay-api';
 import ImageGallery from './ImageGallery/ImageGallery';
@@ -16,99 +16,123 @@ const endOfResultsMessage =
 
 const perPage = 12;
 
-export default class App extends Component {
-  state = {
-    images: [],
-    isLoading: false,
-    searchQuery: '',
-    currentPage: 1,
-    loadMore: false,
-    isOpenModal: false,
-    modalData: null,
-  };
+const App = () => {
+  const [images, setImages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loadMore, setLoadMore] = useState(false);
+  const [isOpenModal, setIsOpenModal] = useState(false);
+  const [modalData, setModalData] = useState(null);
 
-  componentDidUpdate(prevProps, prevState) {
-    const { searchQuery, currentPage, images } = this.state;
-    const searchQueryChanged = prevState.searchQuery !== searchQuery;
-    const currentPageChanged = prevState.currentPage !== currentPage;
-    // Checking if it is a new search with the same searchQuery
-    const imagesClearedAndNewSearch =
-      prevState.images !== images && images.length === 0;
+  useEffect(() => {
+    if (!searchQuery) return;
 
-    if (searchQueryChanged || currentPageChanged || imagesClearedAndNewSearch) {
-      this.setState({ isLoading: true });
-      fetchImages(searchQuery, currentPage, perPage)
-        .then(searchResults => {
-          if (searchResults.total === 0) {
-            Notify.failure(noImagesMessage);
-          } else {
-            if (currentPage === 1) {
-              Notify.success(successMessage(searchResults.totalHits));
-            }
+    setIsLoading(true);
 
-            const loadMore =
-              currentPage < Math.ceil(searchResults.totalHits / perPage);
-
-            if (!loadMore) {
-              Notify.info(endOfResultsMessage);
-            }
-
-            this.setState(prevState => ({
-              images: [...prevState.images, ...searchResults.hits],
-              loadMore,
-            }));
+    fetchImages(searchQuery, currentPage, perPage)
+      .then(searchResults => {
+        if (searchResults.total === 0) {
+          Notify.failure(noImagesMessage);
+        } else {
+          if (currentPage === 1) {
+            Notify.success(successMessage(searchResults.totalHits));
           }
-        })
-        .catch(error => {
-          Notify.failure(errorMessage);
-        })
-        .finally(() => {
-          this.setState({ isLoading: false });
-        });
-    }
-  }
 
-  onSearchHandler = async searchQuery => {
-    this.setState({ searchQuery, images: [], currentPage: 1 });
+          const canLoadMore =
+            currentPage < Math.ceil(searchResults.totalHits / perPage);
+
+          if (!canLoadMore) {
+            Notify.info(endOfResultsMessage);
+          }
+
+          setImages(prevImages => [...prevImages, ...searchResults.hits]);
+
+          setLoadMore(canLoadMore);
+        }
+      })
+      .catch(error => {
+        Notify.failure(errorMessage);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [searchQuery, currentPage]);
+
+  // componentDidUpdate(prevProps, prevState) {
+  //   const { searchQuery, currentPage, images } = this.state;
+  //   const searchQueryChanged = prevState.searchQuery !== searchQuery;
+  //   const currentPageChanged = prevState.currentPage !== currentPage;
+  //   // Checking if it is a new search with the same searchQuery
+  //   const imagesClearedAndNewSearch =
+  //     prevState.images !== images && images.length === 0;
+
+  //   if (searchQueryChanged || currentPageChanged || imagesClearedAndNewSearch) {
+  //     this.setState({ isLoading: true });
+  //     fetchImages(searchQuery, currentPage, perPage)
+  //       .then(searchResults => {
+  //         if (searchResults.total === 0) {
+  //           Notify.failure(noImagesMessage);
+  //         } else {
+  //           if (currentPage === 1) {
+  //             Notify.success(successMessage(searchResults.totalHits));
+  //           }
+
+  //           const loadMore =
+  //             currentPage < Math.ceil(searchResults.totalHits / perPage);
+
+  //           if (!loadMore) {
+  //             Notify.info(endOfResultsMessage);
+  //           }
+
+  //           this.setState(prevState => ({
+  //             images: [...prevState.images, ...searchResults.hits],
+  //             loadMore,
+  //           }));
+  //         }
+  //       })
+  //       .catch(error => {
+  //         Notify.failure(errorMessage);
+  //       })
+  //       .finally(() => {
+  //         this.setState({ isLoading: false });
+  //       });
+  //   }
+  // }
+
+  const onSearchHandler = newSearchQuery => {
+    setSearchQuery(newSearchQuery);
+    setImages([]);
+    setCurrentPage(1);
   };
 
-  loadMoreHandler = () => {
-    this.setState(prevState => ({
-      currentPage: prevState.currentPage + 1,
-    }));
+  const loadMoreHandler = () => {
+    setCurrentPage(prevPage => prevPage + 1);
   };
 
-  openModal = imageData => {
-    this.setState({
-      isOpenModal: true,
-      modalData: imageData,
-    });
+  const openModal = imageData => {
+    setIsOpenModal(true);
+    setModalData(imageData);
   };
 
-  closeModal = () => {
-    this.setState({
-      isOpenModal: false,
-      modalData: null,
-    });
+  const closeModal = () => {
+    setIsOpenModal(false);
+    setModalData(null);
   };
 
-  render() {
-    const { images, isLoading, loadMore, isOpenModal, modalData } = this.state;
+  return (
+    <div className="App">
+      <Searchbar onSubmit={onSearchHandler} />
+      {images.length > 0 && (
+        <ImageGallery images={images} openModal={openModal} />
+      )}
+      {loadMore && !isLoading && (
+        <Button name="Load more" onClickHandler={loadMoreHandler} />
+      )}
+      {isLoading && <Loader />}
+      {isOpenModal && <Modal closeModal={closeModal} modalData={modalData} />}
+    </div>
+  );
+};
 
-    return (
-      <div className="App">
-        <Searchbar onSubmit={this.onSearchHandler} />
-        {images.length > 0 && (
-          <ImageGallery images={images} openModal={this.openModal} />
-        )}
-        {loadMore && !isLoading && (
-          <Button name="Load more" onClickHandler={this.loadMoreHandler} />
-        )}
-        {isLoading && <Loader />}
-        {isOpenModal && (
-          <Modal closeModal={this.closeModal} modalData={modalData} />
-        )}
-      </div>
-    );
-  }
-}
+export default App;
