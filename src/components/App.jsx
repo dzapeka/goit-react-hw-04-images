@@ -46,7 +46,7 @@ const App = () => {
         const canLoadMorePages =
           page < Math.ceil(searchResults.totalHits / PER_PAGE);
 
-        if (!canLoadMorePages) {
+        if (!canLoadMorePages && page > 1) {
           Notify.info(MESSAGES.endOfResults);
         }
 
