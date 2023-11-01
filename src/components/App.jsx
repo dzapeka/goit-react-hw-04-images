@@ -13,7 +13,6 @@ const MESSAGES = {
   noImages:
     'Sorry, there are no images matching your search query. Please try again.',
   endOfResults: "We're sorry, but you've reached the end of search results.",
-  sameQuery: "You're already viewing the first page for this search query.",
 };
 
 const PER_PAGE = 12;
@@ -63,13 +62,13 @@ const App = () => {
 
   const onSearchHandler = newSearchQuery => {
     if (newSearchQuery === searchQuery && currentPage === 1) {
-      Notify.info(MESSAGES.sameQuery);
-      return;
+      setImages([]);
+      loadImagesData(searchQuery, currentPage);
+    } else {
+      setSearchQuery(newSearchQuery);
+      setImages([]);
+      setCurrentPage(1);
     }
-
-    setSearchQuery(newSearchQuery);
-    setImages([]);
-    setCurrentPage(1);
   };
 
   const loadMoreHandler = () => {
